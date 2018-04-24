@@ -35,6 +35,7 @@
 @property (weak, nonatomic) IBOutlet UIScrollView *scrollView;
 // 设置开关
 @property (weak, nonatomic) IBOutlet UISwitch *showTakePhotoBtnSwitch;  ///< 在内部显示拍照按钮
+@property (weak, nonatomic) IBOutlet UISwitch *showTakeVideoBtnSwitch;  ///< 在内部显示拍视频按钮
 @property (weak, nonatomic) IBOutlet UISwitch *sortAscendingSwitch;     ///< 照片排列按修改时间升序
 @property (weak, nonatomic) IBOutlet UISwitch *allowPickingVideoSwitch; ///< 允许选择视频
 @property (weak, nonatomic) IBOutlet UISwitch *allowPickingImageSwitch; ///< 允许选择图片
@@ -105,7 +106,7 @@
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
-    NSInteger contentSizeH = 12 * 35 + 20;
+    NSInteger contentSizeH = 13 * 35 + 20;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.01 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         self.scrollView.contentSize = CGSizeMake(0, contentSizeH + 5);
     });
@@ -116,7 +117,8 @@
     _layout.minimumInteritemSpacing = _margin;
     _layout.minimumLineSpacing = _margin;
     [self.collectionView setCollectionViewLayout:_layout];
-    self.collectionView.frame = CGRectMake(0, contentSizeH, self.view.tz_width, self.view.tz_height - contentSizeH);
+    CGFloat collectionViewY = CGRectGetMaxY(self.scrollView.frame);
+    self.collectionView.frame = CGRectMake(0, collectionViewY, self.view.tz_width, self.view.tz_height - collectionViewY);
 }
 
 #pragma mark UICollectionView
@@ -182,11 +184,11 @@
             imagePickerVc.allowPickingMultipleVideo = self.allowPickingMuitlpleVideoSwitch.isOn;
             imagePickerVc.isSelectOriginalPhoto = _isSelectOriginalPhoto;
             [imagePickerVc setDidFinishPickingPhotosHandle:^(NSArray<UIImage *> *photos, NSArray *assets, BOOL isSelectOriginalPhoto) {
-                _selectedPhotos = [NSMutableArray arrayWithArray:photos];
-                _selectedAssets = [NSMutableArray arrayWithArray:assets];
-                _isSelectOriginalPhoto = isSelectOriginalPhoto;
-                [_collectionView reloadData];
-                _collectionView.contentSize = CGSizeMake(0, ((_selectedPhotos.count + 2) / 3 ) * (_margin + _itemWH));
+                self->_selectedPhotos = [NSMutableArray arrayWithArray:photos];
+                self->_selectedAssets = [NSMutableArray arrayWithArray:assets];
+                self->_isSelectOriginalPhoto = isSelectOriginalPhoto;
+                [self->_collectionView reloadData];
+                self->_collectionView.contentSize = CGSizeMake(0, ((self->_selectedPhotos.count + 2) / 3 ) * (self->_margin + self->_itemWH));
             }];
             [self presentViewController:imagePickerVc animated:YES completion:nil];
         }
@@ -233,6 +235,8 @@
         imagePickerVc.selectedAssets = _selectedAssets; // 目前已经选中的图片数组
     }
     imagePickerVc.allowTakePicture = self.showTakePhotoBtnSwitch.isOn; // 在内部显示拍照按钮
+    imagePickerVc.allowTakeVideo = self.showTakeVideoBtnSwitch.isOn;   // 在内部显示拍视频按
+    imagePickerVc.videoMaximumDuration = 10; // 视频最大拍摄时间
     
     // imagePickerVc.photoWidth = 1000;
     
@@ -595,9 +599,9 @@
     
     [_collectionView performBatchUpdates:^{
         NSIndexPath *indexPath = [NSIndexPath indexPathForItem:sender.tag inSection:0];
-        [_collectionView deleteItemsAtIndexPaths:@[indexPath]];
+        [self->_collectionView deleteItemsAtIndexPaths:@[indexPath]];
     } completion:^(BOOL finished) {
-        [_collectionView reloadData];
+        [self->_collectionView reloadData];
     }];
 }
 
@@ -605,6 +609,13 @@
     if (sender.isOn) {
         [_showSheetSwitch setOn:NO animated:YES];
         [_allowPickingImageSwitch setOn:YES animated:YES];
+    }
+}
+
+- (IBAction)showTakeVideoBtnSwitchClick:(UISwitch *)sender {
+    if (sender.isOn) {
+        [_showSheetSwitch setOn:NO animated:YES];
+        [_allowPickingVideoSwitch setOn:YES animated:YES];
     }
 }
 
@@ -626,7 +637,6 @@
 - (IBAction)allowPickingImageSwitchClick:(UISwitch *)sender {
     if (!sender.isOn) {
         [_allowPickingOriginalPhotoSwitch setOn:NO animated:YES];
-        [_showTakePhotoBtnSwitch setOn:NO animated:YES];
         [_allowPickingVideoSwitch setOn:YES animated:YES];
         [_allowPickingGifSwitch setOn:NO animated:YES];
     }
