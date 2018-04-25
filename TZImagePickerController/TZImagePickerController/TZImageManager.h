@@ -113,7 +113,8 @@
 /// 缩放图片至新尺寸
 - (UIImage *)scaleImage:(UIImage *)image toSize:(CGSize)size;
 
--(void)loadLastItemWithBlock:(void (^)(UIImage *))completion;
+- (void)loadLastItemWithBlock:(void (^)(UIImage *))completion;
+- (void)saveLocalPhotoToAlbumWithImage:(UIImage *)image location:(CLLocation *)location completion:(void (^)(NSError *error,id assert))completion;
 
 @end
 

@@ -1199,6 +1199,78 @@ static dispatch_once_t onceToken;
         }];
     }
 }
+- (void)saveLocalPhotoToAlbumWithImage:(UIImage *)image location:(CLLocation *)location completion:(void (^)(NSError *error,id assert))completion{
+    id asset = nil;
+    NSMutableArray *imageIds = [NSMutableArray array];
+    if (iOS8Later) {
+        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+            if (iOS9Later) {
+                NSData *data = UIImageJPEGRepresentation(image, 0.9);
+                PHAssetResourceCreationOptions *options = [[PHAssetResourceCreationOptions alloc] init];
+                options.shouldMoveFile = YES;
+                PHAssetCreationRequest *request = [PHAssetCreationRequest creationRequestForAsset];
+                [request addResourceWithType:PHAssetResourceTypePhoto data:data options:options];
+                [imageIds addObject:request.placeholderForCreatedAsset.localIdentifier];
+                if (location) {
+                    request.location = location;
+                }
+                request.creationDate = [NSDate date];
+            } else {
+                PHAssetChangeRequest *request = [PHAssetChangeRequest creationRequestForAssetFromImage:image];
+                [imageIds addObject:request.placeholderForCreatedAsset.localIdentifier];
+
+                if (location) {
+                    request.location = location;
+                }
+                request.creationDate = [NSDate date];
+            }
+        } completionHandler:^(BOOL success, NSError *error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (success && completion) {
+                    //成功后取相册中的图片对象
+                    __block PHAsset *imageAsset = nil;
+                    PHFetchResult *result = [PHAsset fetchAssetsWithLocalIdentifiers:imageIds options:nil];
+                    [result enumerateObjectsUsingBlock:^(PHAsset * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+                        
+                        imageAsset = obj;
+                        *stop = YES;
+                        completion(nil,obj);
+                        
+                    }];
+                    
+                } else if (error) {
+                    NSLog(@"保存照片出错:%@",error.localizedDescription);
+                    if (completion) {
+                        completion(error,nil);
+                    }
+                }
+            });
+        }];
+    } else {
+        [self.assetLibrary writeImageToSavedPhotosAlbum:image.CGImage orientation:[self orientationFromImage:image] completionBlock:^(NSURL *assetURL, NSError *error) {
+            if (error) {
+                NSLog(@"保存图片失败:%@",error.localizedDescription);
+                if (completion) {
+                    completion(error,nil);
+                }
+            } else {
+                // 多给系统0.5秒的时间，让系统去更新相册数据
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    if (completion) {
+                        [self.assetLibrary assetForURL:assetURL resultBlock:^(ALAsset *asset) {
+                            completion(nil,asset);
+                        } failureBlock:^(NSError *error) {
+                            completion(error,nil);
+                        }];
+                        
+                        
+                    }
+                });
+            }
+        }];
+    }
+    
+}
 #pragma clang diagnostic pop
 
 @end
